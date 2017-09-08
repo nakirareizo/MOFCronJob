@@ -24,31 +24,273 @@ namespace MOFSyncJob
         {
             LogFileHelper.logList = new ArrayList();
             ArrayList dtList = new ArrayList();
-            //RD005_maklumat_peralatan_import
-            //DataTable dtMaklumatPeralatan = getMaklumatPeralatan();
-            //dtList.Add(dtMaklumatPeralatan);
-
-            //RD001_maklumat_permohonan
-            Console.WriteLine(string.Format("[{0}] : Start Sync EDFI Data..", DateTime.Now.ToString()));
-            LogFileHelper.logList.Add(string.Format("[{0}] : Start Sync EDFI Data...", DateTime.Now.ToString()));
-            DataTable dtMaklumatPermohonan = getMaklumatPermohonan();
-            dtList.Add(dtMaklumatPermohonan);
-            Console.WriteLine(string.Format("[{0}] : Finished fetch Data from EXPAT DB..", DateTime.Now.ToString()));
-            LogFileHelper.logList.Add(string.Format("[{0}] : Finished fetch Data from EXPAT DB...", DateTime.Now.ToString()));
-            InsertMaklumatPermohonan(dtMaklumatPermohonan);
-            Console.WriteLine(string.Format("[{0}] : Finished all sync..", DateTime.Now.ToString()));
-            LogFileHelper.logList.Add(string.Format("[{0}] : Finished all sync..", DateTime.Now.ToString()));
-            //R001_kod_stesen_kastam
+            ////R001_kod_stesen_kastam
             //DataTable dtStesenKastam = getStesenKastam();
             //dtList.Add(dtStesenKastam);
-
-            //R005_kod_unit_ukuran
+            //Console.WriteLine(string.Format("[{0}] : get all record from R001_kod_stesen_kastam ", DateTime.Now.ToString()));
+            //LogFileHelper.logList.Add(string.Format("[{0}] : get all record from R001_kod_stesen_kastam", DateTime.Now.ToString()));
+            //////R005_kod_unit_ukuran
             //DataTable dtKodUnitUkuran = getKodUnitUkuran();
             //dtList.Add(dtKodUnitUkuran);
-
-
+            //Console.WriteLine(string.Format("[{0}] : get all record from R005_kod_unit_ukuran ", DateTime.Now.ToString()));
+            //LogFileHelper.logList.Add(string.Format("[{0}] : get all record from R005_kod_unit_ukuran", DateTime.Now.ToString()));
+            //RD005_maklumat_peralatan_import
+            //UPDATE 201707301804_Najib-> update view table -> V_MDEC_RD005_maklumat_peralatan_import
+            DataTable dtMaklumatPeralatan = getMaklumatPeralatan();
+            dtList.Add(dtMaklumatPeralatan);
+            Console.WriteLine(string.Format("[{0}] : get all record from RD005_maklumat_peralatan_import ", DateTime.Now.ToString()));
+            LogFileHelper.logList.Add(string.Format("[{0}] : get all record from RD005_maklumat_peralatan_import", DateTime.Now.ToString()));
+            //INSERT INTO MASTER TABLE:
+            int SkippedRecord = 0;
+            InsertIntoMOFDB(dtMaklumatPeralatan, out SkippedRecord);
+            ////RD001_maklumat_permohonan
+            DataTable dtMaklumatPermohonan = getMaklumatPermohonan();
+            //dtList.Add(dtMaklumatPermohonan);
+            //Console.WriteLine(string.Format("[{0}] : get all record from RD001_maklumat_permohonan ", DateTime.Now.ToString()));
+            //LogFileHelper.logList.Add(string.Format("[{0}] : get all record from RD001_maklumat_permohonan", DateTime.Now.ToString()));
+            InsertMaklumatPermohonan(dtMaklumatPermohonan);
+            Console.WriteLine(string.Format("[{0}] : Finished all synced, and skipped record: {1}", DateTime.Now.ToString(), SkippedRecord));
+            LogFileHelper.logList.Add(string.Format("[{0}] : Finished all synced, and skipped record: {1}", DateTime.Now.ToString(), SkippedRecord));
+            //Console.ReadLine();
         }
+        private static void InsertIntoMOFDB(DataTable dt, out int SkippedRecord)
+        {
+            SkippedRecord = 0;
+            foreach (DataRow dr in dt.Rows)
+            {
+                //
+                string LatestRecord = getLatestRecord();
+                //int NewRecord = Convert.ToInt32(LatestRecord) + 1;
+                string NoItem = dr["no_ruj_item"].ToString();
+                string TarikhImport = dr["tarikh_import"].ToString();
+                string ItemStatus = dr["item_status"].ToString();
+                //if (!CheckEDFIRecordExistInTbl(dr["no_permohonan"].ToString(), "EDFI_Maklumat_Peralatan_Import", NoItem, TarikhImport, ItemStatus))
+                //{
+                using (SqlConnection Connection = SQLHelper.GetConnectionMOF())
+                {
 
+                    SqlCommand com = new SqlCommand();
+                    System.Text.StringBuilder sql = new System.Text.StringBuilder();
+
+                    DateTime SyncDate = DateTime.Now;
+                    string sSyncDate = SyncDate.ToString("yyyy-MM-dd");
+                    sql.AppendLine("INSERT INTO [dbo].[EDFI_Maklumat_Peralatan_Import]");
+                    //sql.AppendLine("( [id]");
+                    sql.AppendLine("( [no_permohonan]");
+                    sql.AppendLine(",[no_ruj_item]");
+                    sql.AppendLine(",[keterangan_item]");
+                    sql.AppendLine(",[kuantiti]");
+                    sql.AppendLine(",[unit]");
+                    sql.AppendLine(",[kategori]");
+                    sql.AppendLine(",[keterangan_kategori]");
+                    sql.AppendLine(",[jangka_hayat]");
+                    sql.AppendLine(",[negara_import]");
+                    sql.AppendLine(",[kod_tariff]");
+                    sql.AppendLine(",[stesen_kastam]");
+                    sql.AppendLine(",[tarikh_import]");
+                    sql.AppendLine(",[cif_value]");
+                    sql.AppendLine(",[kadar_duti_import]");
+                    sql.AppendLine(",[jum_duti_import]");
+                    sql.AppendLine(",[fungsi_item]");
+                    sql.AppendLine(",[item_status]");
+                    sql.AppendLine(",[SyncDate] ) ");
+
+                    sql.AppendLine("VALUES(");
+                    //sql.AppendLine("@id,@no_permohonan, @no_ruj_item, @keterangan_item, @kuantiti, @unit, @kategori, ");
+                    sql.AppendLine("@no_permohonan, @no_ruj_item, @keterangan_item, @kuantiti, @unit, @kategori, ");
+                    sql.AppendLine("@keterangan_kategori, @jangka_hayat, @negara_import, @kod_tariff, @stesen_kastam, @tarikh_import,");
+                    sql.AppendLine("@cif_value, @kadar_duti_import, @jum_duti_import, @fungsi_item, @item_status,@SyncDate");
+                    sql.AppendLine(")");
+
+                    //com.Parameters.Add(new SqlParameter("@id", NewRecord));
+                    com.Parameters.Add(new SqlParameter("@no_permohonan", dr["no_permohonan"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@no_ruj_item", dr["no_ruj_item"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@keterangan_item", dr["keterangan_item"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@kuantiti", dr["kuantiti"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@unit", dr["unit"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@kategori", dr["kategori"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@keterangan_kategori", dr["keterangan_kategori"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@jangka_hayat", dr["jangka_hayat"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@negara_import", dr["negara_import"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@kod_tariff", dr["kod_tariff"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@stesen_kastam", dr["stesen_kastam"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@tarikh_import", dr["tarikh_import"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@cif_value", dr["cif_value"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@kadar_duti_import", dr["kadar_duti_import"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@jum_duti_import", dr["jum_duti_import"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@fungsi_item", dr["fungsi_item"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@item_status", dr["item_status"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@SyncDate", sSyncDate));
+
+                    com.CommandText = sql.ToString();
+                    com.CommandType = CommandType.Text;
+                    com.Connection = Connection;
+                    com.CommandTimeout = int.MaxValue;
+
+                    try
+                    {
+                        com.ExecuteNonQuery();
+                        Console.WriteLine(string.Format("[{0}] : New record inserted in RD005_maklumat_peralatan_import for Application No :  ", DateTime.Now.ToString(), dr["no_permohonan"].ToString()));
+                        LogFileHelper.logList.Add(string.Format("[{0}] : New record inserted in RD005_maklumat_peralatan_import for Application No :  ", DateTime.Now.ToString(), dr["no_permohonan"].ToString()));
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                }
+                //}
+                //else
+                //{
+                //    SkippedRecord++;
+                //}
+            }
+        }
+        private static void InsertInTable(DataTable dt)
+        {
+            foreach (DataRow dr in dt.Rows)
+            {
+                string LatestRecord = getLatestRecord();
+                int NewRecord = Convert.ToInt32(LatestRecord) + 1;
+                using (SqlConnection Connection = SQLHelper.GetConnectionMOF())
+                {
+
+                    SqlCommand com = new SqlCommand();
+                    System.Text.StringBuilder sql = new System.Text.StringBuilder();
+
+                    DateTime SyncDate = DateTime.Now;
+                    string sSyncDate = SyncDate.ToString("yyyy-MM-dd");
+                    sql.AppendLine("INSERT INTO [dbo].[EDFI_Maklumat_Peralatan_Import]");
+                    //sql.AppendLine("( [id]");
+                    sql.AppendLine("( [no_permohonan]");
+                    sql.AppendLine(",[no_ruj_item]");
+                    sql.AppendLine(",[keterangan_item]");
+                    sql.AppendLine(",[kuantiti]");
+                    sql.AppendLine(",[unit]");
+                    sql.AppendLine(",[kategori]");
+                    sql.AppendLine(",[keterangan_kategori]");
+                    sql.AppendLine(",[jangka_hayat]");
+                    sql.AppendLine(",[negara_import]");
+                    sql.AppendLine(",[kod_tariff]");
+                    sql.AppendLine(",[stesen_kastam]");
+                    sql.AppendLine(",[tarikh_import]");
+                    sql.AppendLine(",[cif_value]");
+                    sql.AppendLine(",[kadar_duti_import]");
+                    sql.AppendLine(",[jum_duti_import]");
+                    sql.AppendLine(",[fungsi_item]");
+                    sql.AppendLine(",[item_status]");
+                    sql.AppendLine(",[SyncDate] ) ");
+
+                    sql.AppendLine("VALUES(");
+                    //sql.AppendLine("@id,@no_permohonan, @no_ruj_item, @keterangan_item, @kuantiti, @unit, @kategori, ");
+                    sql.AppendLine("@no_permohonan, @no_ruj_item, @keterangan_item, @kuantiti, @unit, @kategori, ");
+                    sql.AppendLine("@keterangan_kategori, @jangka_hayat, @negara_import, @kod_tariff, @stesen_kastam, @tarikh_import,");
+                    sql.AppendLine("@cif_value, @kadar_duti_import, @jum_duti_import, @fungsi_item, @item_status,@SyncDate");
+                    sql.AppendLine(")");
+
+                    //com.Parameters.Add(new SqlParameter("@id", NewRecord));
+                    com.Parameters.Add(new SqlParameter("@no_permohonan", dr["no_permohonan"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@no_ruj_item", dr["no_ruj_item"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@keterangan_item", dr["keterangan_item"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@kuantiti", dr["kuantiti"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@unit", dr["unit"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@kategori", dr["kategori"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@keterangan_kategori", dr["keterangan_kategori"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@jangka_hayat", dr["jangka_hayat"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@negara_import", dr["negara_import"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@kod_tariff", dr["kod_tariff"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@stesen_kastam", dr["stesen_kastam"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@tarikh_import", dr["tarikh_import"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@cif_value", dr["cif_value"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@kadar_duti_import", dr["kadar_duti_import"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@jum_duti_import", dr["jum_duti_import"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@fungsi_item", dr["fungsi_item"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@item_status", dr["item_status"].ToString()));
+                    com.Parameters.Add(new SqlParameter("@SyncDate", sSyncDate));
+
+                    com.CommandText = sql.ToString();
+                    com.CommandType = CommandType.Text;
+                    com.Connection = Connection;
+                    com.CommandTimeout = int.MaxValue;
+
+                    try
+                    {
+                        com.ExecuteNonQuery();
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                }
+
+            }
+        }
+        private static string getLatestRecord()
+        {
+            string id = "";
+            SqlConnection con = SQLHelper.GetConnectionMOF();
+            SqlCommand com = new SqlCommand();
+            SqlDataAdapter ad = new SqlDataAdapter(com);
+
+            System.Text.StringBuilder sql = new System.Text.StringBuilder();
+            sql.AppendLine("SELECT TOP 1 id FROM EDFI_Maklumat_Peralatan_Import ORDER BY id DESC ");
+            com.CommandText = sql.ToString();
+            com.CommandType = CommandType.Text;
+            com.Connection = con;
+            com.CommandTimeout = int.MaxValue;
+
+            try
+            {
+                DataTable dt = new DataTable();
+
+                ad.Fill(dt);
+                if (dt.Rows.Count > 0)
+                    id = dt.Rows[0][0].ToString();
+                return id;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+            finally
+            {
+                con.Close();
+            }
+        }
+        private static bool CheckEDFIRecordExistInTbl(string NoPermohonan, string TblName, string NoItem, string TarikhImport, string ItemStatus)
+        {
+            //2017-02-12
+            string sSyncDate = DateTime.Now.ToString("yyyy-MM-dd");
+            bool existed = false;
+            SqlConnection con = SQLHelper.GetConnectionMOF();
+            SqlCommand com = new SqlCommand();
+            SqlDataAdapter ad = new SqlDataAdapter(com);
+
+            System.Text.StringBuilder sql = new System.Text.StringBuilder();
+            sql.AppendLine("Select TOP 1 no_permohonan,no_ruj_item from EDFI_Maklumat_Peralatan_Import where no_permohonan='" + NoPermohonan.Trim() + "' AND SyncDate='" + sSyncDate + "' AND no_ruj_item='" + NoItem + "'");
+            sql.AppendLine("AND tarikh_import='" + TarikhImport.Trim() + "' AND item_status='" + ItemStatus + "'");
+            com.CommandText = sql.ToString();
+            com.CommandType = CommandType.Text;
+            com.Connection = con;
+            com.CommandTimeout = int.MaxValue;
+
+            try
+            {
+                DataTable dt = new DataTable();
+
+                ad.Fill(dt);
+                if (dt.Rows.Count > 0)
+                    existed = true;
+                return existed;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+            finally
+            {
+                con.Close();
+            }
+        }
         private static void InsertMaklumatPermohonan(DataTable dtMaklumatPermohonan)
         {
             // INSERT INTO[dbo].[EDFI_Maklumat_Permohonan]
@@ -121,7 +363,7 @@ namespace MOFSyncJob
                         Console.WriteLine(string.Format("[{0}] : New record inserted in EDFI_Maklumat_Permohonan table", DateTime.Now.ToString()));
                         LogFileHelper.logList.Add(string.Format("[{0}] : New record inserted in EDFI_Maklumat_Permohonan table", DateTime.Now.ToString()));
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
 
                     }
@@ -139,7 +381,6 @@ namespace MOFSyncJob
 
 
         }
-
         private static bool CheckEDFIRecordExist(string NoPermohonan, string ROCNumber)
         {
             string sSyncDate = DateTime.Now.ToString("yyyy-MM-dd");
@@ -173,7 +414,6 @@ namespace MOFSyncJob
                 con.Close();
             }
         }
-
         private static DataTable getKodUnitUkuran()
         {
             DataTable output = new DataTable("R005_kod_unit_ukuran");
@@ -258,7 +498,7 @@ namespace MOFSyncJob
             {
 
                 StringBuilder sql = new StringBuilder();
-                sql.AppendLine("SELECT * FROM RD005_maklumat_peralatan_import");
+                sql.AppendLine("SELECT * FROM V_MDEC_RD005_maklumat_peralatan_import");
                 MySqlDataAdapter returnVal = new MySqlDataAdapter(sql.ToString(), conn);
                 returnVal.Fill(output);
             }
@@ -277,8 +517,8 @@ namespace MOFSyncJob
             //LogFileHelper.logList.Add("ERROR CANNOT SYNC...");
             List<string> TOs = new List<string>();
             //TOs.AddRange(BOL.Common.Modules.Parameter.WIZARD_RCPNT.Split(','));
-            TOs.Add("najib.radzuan@mdec.com.my");
-            BOL.Utils.Email.SendMail(TOs.ToArray(), null, null,"MOF Sync Error Notification",string.Format("{0} SyncACApprovedAccount {1}","ERROR ON MOF SYNC", "ERROR CANNOT SYNC..."), null);
+            //TOs.Add("najib.radzuan@mdec.com.my");
+            //BOL.Utils.Email.SendMail(TOs.ToArray(), null, null,"MOF Sync Error Notification",string.Format("{0} SyncACApprovedAccount {1}","ERROR ON MOF SYNC", "ERROR CANNOT SYNC..."), null);
 
 
             LogFileHelper.logList = new ArrayList();
@@ -444,7 +684,6 @@ namespace MOFSyncJob
                 }
             }
         }
-
         private static int getTier(string MSCFileID)
         {
             int Tier = 0;
@@ -485,7 +724,6 @@ namespace MOFSyncJob
                 con.Close();
             }
         }
-
         private static string getLatestExcelFile()
         {
             string FileName = "";
@@ -555,7 +793,6 @@ namespace MOFSyncJob
                 con.Close();
             }
         }
-
         private static string getMSCCertNoFromWizard(string RefNumber)
         {
             string MSCCertNo = "";
@@ -588,7 +825,6 @@ namespace MOFSyncJob
                 con.Close();
             }
         }
-
         private static bool CheckRecordExist(string fileID, string submitType, DateTime SyncDate)
         {
             //2017-02-12
@@ -623,7 +859,6 @@ namespace MOFSyncJob
                 con.Close();
             }
         }
-
         private static void InsertIntoMOFMaklumatSyarikat(ArrayList MSCDataList)
         {
             //No1. FileID
@@ -705,7 +940,6 @@ namespace MOFSyncJob
 
 
         }
-
         private static DataTable SelectACApprovedAccountList()
         {
             SqlConnection con = SQLHelper.GetConnection();
@@ -737,7 +971,6 @@ namespace MOFSyncJob
                 con.Close();
             }
         }
-
         private static string getLastSyncedDate()
         {
             string LastSyncedDate = "";
