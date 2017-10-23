@@ -536,9 +536,10 @@ namespace MOFSyncJob
                         wizardData = SelectACApprovedAccountList(); Console.WriteLine(string.Format("[{0}] : successful retrieved data from spbig file", DateTime.Now.ToString()));
                         LogFileHelper.logList.Add(string.Format("[{0}] : successful retrieved data from spbig file", DateTime.Now.ToString()));
                     }
+                    //READ FROM EXCEL FILE:
                     else
                     {
-                        //READ FROM EXCEL FILE:
+
                         string ExcelFileName = getLatestExcelFile();
                         wizardData = ExcelToDT.exceldata(ExcelFileName); Console.WriteLine(string.Format("[{0}] : successful retrieved MSC4Startup data from excel file", DateTime.Now.ToString()));
                         LogFileHelper.logList.Add(string.Format("[{0}] : successful retrieved MSC4Startup data from excel file", DateTime.Now.ToString()));
